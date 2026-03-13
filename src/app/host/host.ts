@@ -33,7 +33,7 @@ import { CountdownTimer } from '../shared/countdown-timer';
               <div class="players-section">
                 <h3>Players ({{ state().players.length }})</h3>
                 <div class="player-list">
-                  @for (player of state().players; track player.peerId) {
+                  @for (player of state().players; track player.playerId) {
                     <div class="player-chip">{{ player.name }}</div>
                   }
                   @if (state().players.length === 0) {

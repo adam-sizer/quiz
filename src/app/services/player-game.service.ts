@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
-import { PeerService } from './peer.service';
+import { FirebaseService } from './firebase.service';
 import { PlayerPhase, ScoreEntry } from '../models/game.model';
 import { HostMessage } from '../models/message.model';
 
@@ -44,12 +44,12 @@ export class PlayerGameService {
     return this.state$.value;
   }
 
-  constructor(private peerService: PeerService) {
-    this.peerService.events.subscribe((event) => {
+  constructor(private firebaseService: FirebaseService) {
+    this.firebaseService.events.subscribe((event) => {
       if (event.type === 'message' && event.data) {
         this.handleMessage(event.data as HostMessage);
       }
-      if (event.type === 'player-disconnected') {
+      if (event.type === 'player-disconnected' && event.playerId === 'host') {
         this.update({ error: 'Host disconnected!' });
       }
       if (event.type === 'error') {
@@ -60,8 +60,8 @@ export class PlayerGameService {
 
   async joinGame(gameCode: string, name: string): Promise<void> {
     this.update({ playerName: name, error: null });
-    await this.peerService.connectToHost(gameCode);
-    this.peerService.broadcast({ type: 'join', name });
+    await this.firebaseService.connectToHost(gameCode);
+    await this.firebaseService.broadcast({ type: 'join', name });
     this.update({ phase: 'lobby' });
   }
 
@@ -71,7 +71,7 @@ export class PlayerGameService {
 
     this.update({ selectedAnswer: optionIndex, phase: 'answered' });
 
-    this.peerService.broadcast({
+    this.firebaseService.broadcast({
       type: 'answer',
       questionIndex: state.currentQuestion!.index,
       optionIndex,
@@ -124,7 +124,7 @@ export class PlayerGameService {
   }
 
   reset(): void {
-    this.peerService.destroy();
+    this.firebaseService.destroy();
     this.state$.next({ ...INITIAL_STATE });
   }
 }

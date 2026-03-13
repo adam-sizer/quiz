@@ -4,7 +4,8 @@
       "WebSearch",
       "Bash(npx @angular/cli@latest new quiz --standalone --routing --style=scss --ssr=false --skip-git --directory=.)",
       "Bash(npm install:*)",
-      "Bash(npx ng:*)"
+      "Bash(npx ng:*)",
+      "Bash(npm uninstall:*)"
     ]
   }
 }

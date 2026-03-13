@@ -2,13 +2,13 @@ export type HostPhase = 'lobby' | 'question' | 'results' | 'leaderboard' | 'fina
 export type PlayerPhase = 'joining' | 'lobby' | 'question' | 'answered' | 'results' | 'final';
 
 export interface Player {
-  peerId: string;
+  playerId: string;
   name: string;
   score: number;
 }
 
 export interface PlayerAnswer {
-  peerId: string;
+  playerId: string;
   optionIndex: number;
   receivedAt: number;
 }

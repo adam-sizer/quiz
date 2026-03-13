@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
-import { PeerService } from './peer.service';
+import { FirebaseService } from './firebase.service';
 import { Quiz } from '../models/quiz.model';
 import { HostPhase, Player, PlayerAnswer, ScoreEntry } from '../models/game.model';
 import { AnswerMessage, JoinMessage } from '../models/message.model';
@@ -36,23 +36,23 @@ export class HostGameService {
     return this.state$.value;
   }
 
-  constructor(private peerService: PeerService) {
-    this.peerService.events.subscribe((event) => {
-      if (event.type === 'message' && event.data && event.peerId) {
-        this.handleMessage(event.peerId, event.data);
+  constructor(private firebaseService: FirebaseService) {
+    this.firebaseService.events.subscribe((event) => {
+      if (event.type === 'message' && event.data && event.playerId) {
+        this.handleMessage(event.playerId, event.data);
       }
     });
   }
 
   async createGame(quiz: Quiz): Promise<string> {
     const gameCode = this.generateGameCode();
-    await this.peerService.createHost(gameCode);
+    await this.firebaseService.createHost(gameCode);
     this.update({ ...INITIAL_STATE, phase: 'lobby', gameCode, quiz });
     return gameCode;
   }
 
   startGame(): void {
-    this.peerService.broadcast({ type: 'start' });
+    this.firebaseService.broadcast({ type: 'start' });
     this.nextQuestion();
   }
 
@@ -68,7 +68,7 @@ export class HostGameService {
       questionStartTime: Date.now(),
     });
 
-    this.peerService.broadcast({
+    this.firebaseService.broadcast({
       type: 'question',
       index: nextIndex,
       text: question.text,
@@ -84,7 +84,7 @@ export class HostGameService {
 
     // Calculate scores
     const updatedPlayers = state.players.map((player) => {
-      const answer = state.answers.find((a) => a.peerId === player.peerId);
+      const answer = state.answers.find((a) => a.playerId === player.playerId);
       let delta = 0;
       if (answer && answer.optionIndex === question.correctIndex) {
         const elapsed = answer.receivedAt - state.questionStartTime;
@@ -95,7 +95,7 @@ export class HostGameService {
 
     const scores: ScoreEntry[] = updatedPlayers
       .map((p) => {
-        const answer = state.answers.find((a) => a.peerId === p.peerId);
+        const answer = state.answers.find((a) => a.playerId === p.playerId);
         let delta = 0;
         if (answer && answer.optionIndex === question.correctIndex) {
           const elapsed = answer.receivedAt - state.questionStartTime;
@@ -107,7 +107,7 @@ export class HostGameService {
 
     this.update({ phase: 'results', players: updatedPlayers, scores });
 
-    this.peerService.broadcast({
+    this.firebaseService.broadcast({
       type: 'reveal',
       correctIndex: question.correctIndex,
       scores,
@@ -136,39 +136,39 @@ export class HostGameService {
 
     this.update({ phase: 'final', scores: finalScores.map((s) => ({ ...s, delta: 0 })) });
 
-    this.peerService.broadcast({ type: 'game-over', finalScores });
+    this.firebaseService.broadcast({ type: 'game-over', finalScores });
   }
 
-  private handleMessage(peerId: string, data: unknown): void {
+  private handleMessage(playerId: string, data: unknown): void {
     const msg = data as { type: string };
     if (msg.type === 'join') {
-      this.handleJoin(peerId, data as JoinMessage);
+      this.handleJoin(playerId, data as JoinMessage);
     } else if (msg.type === 'answer') {
-      this.handleAnswer(peerId, data as AnswerMessage);
+      this.handleAnswer(playerId, data as AnswerMessage);
     }
   }
 
-  private handleJoin(peerId: string, msg: JoinMessage): void {
+  private handleJoin(playerId: string, msg: JoinMessage): void {
     const state = this.snapshot;
     if (state.phase !== 'lobby') return;
 
-    const players = [...state.players, { peerId, name: msg.name, score: 0 }];
+    const players = [...state.players, { playerId, name: msg.name, score: 0 }];
     this.update({ players });
 
-    this.peerService.broadcast({
+    this.firebaseService.broadcast({
       type: 'player-joined',
       name: msg.name,
       playerCount: players.length,
     });
   }
 
-  private handleAnswer(peerId: string, msg: AnswerMessage): void {
+  private handleAnswer(playerId: string, msg: AnswerMessage): void {
     const state = this.snapshot;
     if (state.phase !== 'question') return;
     if (msg.questionIndex !== state.currentQuestionIndex) return;
-    if (state.answers.some((a) => a.peerId === peerId)) return;
+    if (state.answers.some((a) => a.playerId === playerId)) return;
 
-    const answers = [...state.answers, { peerId, optionIndex: msg.optionIndex, receivedAt: Date.now() }];
+    const answers = [...state.answers, { playerId, optionIndex: msg.optionIndex, receivedAt: Date.now() }];
     this.update({ answers });
   }
 
@@ -182,7 +182,7 @@ export class HostGameService {
   }
 
   reset(): void {
-    this.peerService.destroy();
+    this.firebaseService.destroy();
     this.state$.next({ ...INITIAL_STATE });
   }
 }
