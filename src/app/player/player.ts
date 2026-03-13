@@ -15,6 +15,18 @@ import { CountdownTimer } from '../shared/countdown-timer';
           <h2>You're in!</h2>
           <p class="player-name">{{ state().playerName }}</p>
           <p class="waiting">Waiting for the host to start the game...</p>
+          <img class="dog-gif" src="https://media.giphy.com/media/bbshzgyFQDqPHXBo4c/giphy.gif" alt="waiting dog" style="width: 120px; margin-top: 1.5rem;" />
+        </div>
+      }
+
+      @case ('thinking') {
+        <div class="player-screen thinking">
+          <h2 class="question-text">{{ state().currentQuestion!.text }}</h2>
+          <div class="thinking-countdown">
+            <div class="thinking-number">{{ thinkingRemaining() }}</div>
+            <p>Get ready...</p>
+          </div>
+          <img class="dog-gif" src="https://media.giphy.com/media/3oriO0OEd9QIDdllqo/giphy.gif" alt="thinking dog" style="width: 100px; margin-top: 1rem;" />
         </div>
       }
 
@@ -40,7 +52,8 @@ import { CountdownTimer } from '../shared/countdown-timer';
         <div class="player-screen answered">
           <div class="big-icon">&#128077;</div>
           <h2>Answer submitted!</h2>
-          <p>Waiting for the timer to end...</p>
+          <p>Waiting for everyone else...</p>
+          <img class="dog-gif" src="https://i.pinimg.com/originals/20/16/45/201645bdb77d9440ebf7f4387b4ef0c0.gif" alt="dancing dog" style="width: 100px; margin-top: 1rem;" />
         </div>
       }
 
@@ -55,6 +68,12 @@ import { CountdownTimer } from '../shared/countdown-timer';
           }
           @if (state().lastDelta > 0) {
             <div class="points-earned">+{{ state().lastDelta }} points</div>
+          }
+          @if (state().lastExplanation) {
+            <div class="explanation">
+              <span class="explanation-label">Why?</span>
+              {{ state().lastExplanation }}
+            </div>
           }
           <div class="leaderboard-mini">
             @for (entry of state().scores.slice(0, 5); track entry.name; let i = $index) {
@@ -71,6 +90,7 @@ import { CountdownTimer } from '../shared/countdown-timer';
       @case ('final') {
         <div class="player-screen final">
           <h2>Game Over!</h2>
+          <img class="dog-gif" src="https://media.giphy.com/media/5xaOcLGvzHxDKjR1LLq/giphy.gif" alt="celebration dog" style="width: 150px; margin-bottom: 1rem;" />
           <div class="final-rank">
             <div class="rank-number">#{{ state().finalRank }}</div>
             <div class="final-name">{{ state().playerName }}</div>
@@ -102,6 +122,11 @@ import { CountdownTimer } from '../shared/countdown-timer';
       text-align: center;
     }
 
+    .dog-gif {
+      border-radius: 10px;
+      opacity: 0.9;
+    }
+
     /* Lobby */
     .check-mark {
       font-size: 4rem;
@@ -122,6 +147,20 @@ import { CountdownTimer } from '../shared/countdown-timer';
     .waiting {
       opacity: 0.7;
       font-size: 1.1rem;
+    }
+
+    /* Thinking */
+    .thinking-countdown {
+      margin: 1.5rem 0;
+    }
+    .thinking-number {
+      font-size: 6rem;
+      font-weight: 900;
+      animation: pulse 1s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.15); opacity: 0.8; }
     }
 
     /* Question */
@@ -183,6 +222,23 @@ import { CountdownTimer } from '../shared/countdown-timer';
       color: #4caf50;
       margin: 0.5rem 0 1.5rem;
     }
+    .explanation {
+      background: rgba(255, 255, 255, 0.1);
+      border-left: 4px solid #d89e00;
+      padding: 0.6rem 0.75rem;
+      border-radius: 0 8px 8px 0;
+      text-align: left;
+      font-size: 0.95rem;
+      line-height: 1.4;
+      margin-bottom: 1rem;
+      width: 100%;
+      max-width: 400px;
+    }
+    .explanation-label {
+      font-weight: 900;
+      color: #d89e00;
+      margin-right: 0.4rem;
+    }
     .leaderboard-mini {
       width: 100%;
       max-width: 400px;
@@ -208,7 +264,7 @@ import { CountdownTimer } from '../shared/countdown-timer';
       background: rgba(255, 255, 255, 0.1);
       padding: 2rem;
       border-radius: 16px;
-      margin: 1.5rem 0;
+      margin: 1rem 0;
     }
     .rank-number {
       font-size: 4rem;
@@ -267,8 +323,12 @@ export class Player implements OnInit, OnDestroy {
     finalScore: 0,
     lastCorrectIndex: null,
     lastDelta: 0,
+    lastExplanation: null,
     error: null,
   });
+
+  thinkingRemaining = signal(3);
+  private thinkingInterval: ReturnType<typeof setInterval> | null = null;
 
   private sub?: Subscription;
 
@@ -283,11 +343,37 @@ export class Player implements OnInit, OnDestroy {
       this.router.navigate(['/join']);
       return;
     }
-    this.sub = this.gameService.state.subscribe((s) => this.state.set(s));
+    this.sub = this.gameService.state.subscribe((s) => {
+      this.state.set(s);
+      if (s.phase === 'thinking') {
+        this.startThinkingCountdown(s.currentQuestion?.thinkingTime ?? 3);
+      }
+    });
   }
 
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
+    this.clearThinkingTimer();
+  }
+
+  private startThinkingCountdown(seconds: number): void {
+    this.clearThinkingTimer();
+    this.thinkingRemaining.set(seconds);
+    this.thinkingInterval = setInterval(() => {
+      const remaining = this.thinkingRemaining() - 1;
+      this.thinkingRemaining.set(remaining);
+      if (remaining <= 0) {
+        this.clearThinkingTimer();
+        this.gameService.readyToAnswer();
+      }
+    }, 1000);
+  }
+
+  private clearThinkingTimer(): void {
+    if (this.thinkingInterval) {
+      clearInterval(this.thinkingInterval);
+      this.thinkingInterval = null;
+    }
   }
 
   selectAnswer(optionIndex: number): void {

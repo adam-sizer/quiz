@@ -1,5 +1,5 @@
-export type HostPhase = 'lobby' | 'question' | 'results' | 'leaderboard' | 'final';
-export type PlayerPhase = 'joining' | 'lobby' | 'question' | 'answered' | 'results' | 'final';
+export type HostPhase = 'lobby' | 'thinking' | 'question' | 'results' | 'final';
+export type PlayerPhase = 'joining' | 'lobby' | 'thinking' | 'question' | 'answered' | 'results' | 'final';
 
 export interface Player {
   playerId: string;

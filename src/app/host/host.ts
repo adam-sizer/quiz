@@ -45,8 +45,25 @@ import { CountdownTimer } from '../shared/countdown-timer';
               @if (state().players.length > 0) {
                 <button class="btn btn-start" (click)="startGame()">Start Game</button>
               }
+
+              <img class="dog-gif lobby-dog" src="https://media.giphy.com/media/mCRJDo24UvJMA/giphy.gif" alt="dancing dog" />
             </div>
           }
+        </div>
+      }
+
+      @case ('thinking') {
+        <div class="host-screen thinking">
+          <span class="question-num">
+            Question {{ state().currentQuestionIndex + 1 }} /
+            {{ state().quiz!.questions.length }}
+          </span>
+          <h2 class="question-text">{{ currentQuestion()!.text }}</h2>
+          <div class="thinking-countdown">
+            <div class="thinking-number">{{ thinkingRemaining() }}</div>
+            <p>Get ready...</p>
+          </div>
+          <img class="dog-gif thinking-dog" src="https://i.pinimg.com/originals/20/16/45/201645bdb77d9440ebf7f4387b4ef0c0.gif" alt="dancing dog" />
         </div>
       }
 
@@ -79,42 +96,52 @@ import { CountdownTimer } from '../shared/countdown-timer';
 
       @case ('results') {
         <div class="host-screen results">
-          <h2>Correct Answer</h2>
-          <div class="correct-answer option-{{ currentQuestion()!.correctIndex }}">
-            {{ currentQuestion()!.options[currentQuestion()!.correctIndex].text }}
-          </div>
-          <div class="answer-distribution">
-            @for (option of currentQuestion()!.options; track $index) {
-              <div class="dist-bar">
-                <div class="dist-label">{{ shapes[$index] }} {{ option.text }}</div>
-                <div class="dist-fill option-{{ $index }}" [style.width.%]="getAnswerPercent($index)">
-                  {{ getAnswerCount($index) }}
+          <div class="results-top">
+            <div class="correct-section">
+              <h2>Correct Answer</h2>
+              <div class="correct-answer option-{{ currentQuestion()!.correctIndex }}">
+                {{ currentQuestion()!.options[currentQuestion()!.correctIndex].text }}
+              </div>
+              @if (currentQuestion()!.explanation) {
+                <div class="explanation">
+                  <span class="explanation-label">Why?</span>
+                  {{ currentQuestion()!.explanation }}
                 </div>
-              </div>
-            }
+              }
+            </div>
+            <div class="distribution-section">
+              @for (option of currentQuestion()!.options; track $index) {
+                <div class="dist-bar">
+                  <div class="dist-label">{{ shapes[$index] }} {{ option.text }}</div>
+                  <div class="dist-fill option-{{ $index }}" [style.width.%]="getAnswerPercent($index)">
+                    {{ getAnswerCount($index) }}
+                  </div>
+                </div>
+              }
+            </div>
           </div>
-          <button class="btn btn-next" (click)="showLeaderboard()">Show Leaderboard</button>
-        </div>
-      }
 
-      @case ('leaderboard') {
-        <div class="host-screen leaderboard">
-          <h2>Leaderboard</h2>
-          <div class="score-list">
-            @for (entry of state().scores; track entry.name; let i = $index) {
-              <div class="score-row" [class.top-three]="i < 3">
-                <span class="rank">{{ i + 1 }}</span>
-                <span class="name">{{ entry.name }}</span>
-                <span class="score">{{ entry.score }}</span>
-                @if (entry.delta > 0) {
-                  <span class="delta">+{{ entry.delta }}</span>
-                }
-              </div>
-            }
+          <div class="leaderboard-section">
+            <h3>Leaderboard</h3>
+            <div class="score-list">
+              @for (entry of state().scores; track entry.name; let i = $index) {
+                <div class="score-row" [class.top-three]="i < 3">
+                  <span class="rank">{{ i + 1 }}</span>
+                  <span class="name">{{ entry.name }}</span>
+                  <span class="score">{{ entry.score }}</span>
+                  @if (entry.delta > 0) {
+                    <span class="delta">+{{ entry.delta }}</span>
+                  }
+                </div>
+              }
+            </div>
           </div>
+
+          <img class="dog-gif results-dog" src="https://i.pinimg.com/originals/20/16/45/201645bdb77d9440ebf7f4387b4ef0c0.gif" alt="party dog" />
+
           <button class="btn btn-next" (click)="nextOrFinish()">
             @if (isLastQuestion()) {
-              See Results
+              See Final Results
             } @else {
               Next Question
             }
@@ -125,6 +152,7 @@ import { CountdownTimer } from '../shared/countdown-timer';
       @case ('final') {
         <div class="host-screen final">
           <h2>Game Over!</h2>
+          <img class="dog-gif winner-dog" src="https://media.giphy.com/media/5xaOcLGvzHxDKjR1LLq/giphy.gif" alt="winner dog" />
           <div class="podium">
             @for (entry of state().scores.slice(0, 3); track entry.name; let i = $index) {
               <div class="podium-place place-{{ i + 1 }}">
@@ -159,6 +187,42 @@ import { CountdownTimer } from '../shared/countdown-timer';
       justify-content: center;
       padding: 2rem;
       text-align: center;
+    }
+
+    /* Dancing dogs */
+    .dog-gif {
+      border-radius: 12px;
+      opacity: 0.9;
+    }
+    .lobby-dog {
+      width: 150px;
+      margin-top: 2rem;
+    }
+    .results-dog {
+      width: 120px;
+      margin: 1rem 0;
+    }
+    .winner-dog {
+      width: 200px;
+      margin: 0.5rem 0 1rem;
+    }
+    .thinking-dog {
+      width: 140px;
+      margin-top: 1.5rem;
+    }
+
+    /* Thinking */
+    .thinking-countdown {
+      margin: 1.5rem 0;
+    }
+    .thinking-number {
+      font-size: 8rem;
+      font-weight: 900;
+      animation: pulse 1s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.15); opacity: 0.8; }
     }
 
     /* Lobby */
@@ -281,22 +345,50 @@ import { CountdownTimer } from '../shared/countdown-timer';
       opacity: 0.8;
     }
 
-    /* Results */
+    /* Results (merged with leaderboard) */
+    .results-top {
+      display: flex;
+      gap: 2rem;
+      width: 100%;
+      max-width: 900px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .correct-section {
+      flex: 1;
+      min-width: 280px;
+    }
     .correct-answer {
       font-size: 1.8rem;
       font-weight: bold;
       padding: 1rem 2rem;
       border-radius: 8px;
-      margin: 1rem 0 2rem;
+      margin: 1rem 0;
       color: white;
     }
-    .answer-distribution {
-      width: 100%;
-      max-width: 700px;
+    .explanation {
+      background: rgba(255, 255, 255, 0.1);
+      border-left: 4px solid #d89e00;
+      padding: 0.75rem 1rem;
+      border-radius: 0 8px 8px 0;
+      text-align: left;
+      font-size: 1.05rem;
+      line-height: 1.5;
+      margin-top: 0.5rem;
+    }
+    .explanation-label {
+      font-weight: 900;
+      color: #d89e00;
+      margin-right: 0.5rem;
+    }
+    .distribution-section {
+      flex: 1;
+      min-width: 280px;
+      text-align: left;
     }
     .dist-bar {
       margin-bottom: 0.75rem;
-      text-align: left;
     }
     .dist-label {
       font-size: 1rem;
@@ -314,12 +406,20 @@ import { CountdownTimer } from '../shared/countdown-timer';
       min-width: 36px;
       transition: width 0.5s ease;
     }
-
-    /* Leaderboard */
-    .score-list {
+    .leaderboard-section {
       width: 100%;
       max-width: 600px;
       margin-top: 1rem;
+    }
+    .leaderboard-section h3 {
+      font-size: 1.3rem;
+      margin-bottom: 0.5rem;
+    }
+
+    /* Score list */
+    .score-list {
+      width: 100%;
+      max-width: 600px;
     }
     .score-row {
       display: flex;
@@ -347,7 +447,7 @@ import { CountdownTimer } from '../shared/countdown-timer';
       font-size: 0.9em;
     }
     .btn-next, .btn-host {
-      margin-top: 2rem;
+      margin-top: 1.5rem;
       padding: 1rem 2.5rem;
       font-size: 1.2rem;
       background: #1368ce;
@@ -364,7 +464,7 @@ import { CountdownTimer } from '../shared/countdown-timer';
       display: flex;
       align-items: flex-end;
       gap: 1rem;
-      margin: 2rem 0;
+      margin: 1rem 0;
     }
     .podium-place {
       background: rgba(255, 255, 255, 0.15);
@@ -407,6 +507,8 @@ export class Host implements OnInit, OnDestroy {
     scores: [],
   });
 
+  thinkingRemaining = signal(3);
+  private thinkingInterval: ReturnType<typeof setInterval> | null = null;
   private sub?: Subscription;
 
   constructor(
@@ -415,11 +517,36 @@ export class Host implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.sub = this.gameService.state.subscribe((s) => this.state.set(s));
+    this.sub = this.gameService.state.subscribe((s) => {
+      this.state.set(s);
+      if (s.phase === 'thinking') {
+        this.startThinkingCountdown(3);
+      }
+    });
   }
 
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
+    this.clearThinkingTimer();
+  }
+
+  private startThinkingCountdown(seconds: number): void {
+    this.clearThinkingTimer();
+    this.thinkingRemaining.set(seconds);
+    this.thinkingInterval = setInterval(() => {
+      const remaining = this.thinkingRemaining() - 1;
+      this.thinkingRemaining.set(remaining);
+      if (remaining <= 0) {
+        this.clearThinkingTimer();
+      }
+    }, 1000);
+  }
+
+  private clearThinkingTimer(): void {
+    if (this.thinkingInterval) {
+      clearInterval(this.thinkingInterval);
+      this.thinkingInterval = null;
+    }
   }
 
   async selectQuiz(quiz: Quiz): Promise<void> {
@@ -432,10 +559,6 @@ export class Host implements OnInit, OnDestroy {
 
   onTimerExpired(): void {
     this.gameService.endQuestion();
-  }
-
-  showLeaderboard(): void {
-    this.gameService.showLeaderboard();
   }
 
   nextOrFinish(): void {

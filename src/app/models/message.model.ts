@@ -20,11 +20,13 @@ export interface QuestionMessage {
   text: string;
   options: string[];
   timeLimit: number;
+  thinkingTime: number;
 }
 
 export interface RevealMessage {
   type: 'reveal';
   correctIndex: number;
+  explanation?: string;
   scores: { name: string; score: number; delta: number }[];
 }
 

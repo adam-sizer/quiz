@@ -31,6 +31,8 @@ const INITIAL_STATE: HostGameState = {
 export class HostGameService {
   private state$ = new BehaviorSubject<HostGameState>({ ...INITIAL_STATE });
   readonly state = this.state$.asObservable();
+  private questionEnded = false;
+  private thinkingTimer: ReturnType<typeof setTimeout> | null = null;
 
   get snapshot(): HostGameState {
     return this.state$.value;
@@ -60,12 +62,15 @@ export class HostGameService {
     const state = this.snapshot;
     const nextIndex = state.currentQuestionIndex + 1;
     const question = state.quiz!.questions[nextIndex];
+    const thinkingTime = 3;
+    this.questionEnded = false;
 
+    // Start in thinking phase — no answer timer yet
     this.update({
-      phase: 'question',
+      phase: 'thinking',
       currentQuestionIndex: nextIndex,
       answers: [],
-      questionStartTime: Date.now(),
+      questionStartTime: 0,
     });
 
     this.firebaseService.broadcast({
@@ -74,10 +79,22 @@ export class HostGameService {
       text: question.text,
       options: question.options.map((o) => o.text),
       timeLimit: question.timeLimit,
+      thinkingTime,
     });
+
+    // After thinking time, transition to question phase (synced with players)
+    this.thinkingTimer = setTimeout(() => {
+      this.update({
+        phase: 'question',
+        questionStartTime: Date.now(),
+      });
+    }, thinkingTime * 1000);
   }
 
   endQuestion(): void {
+    if (this.questionEnded) return;
+    this.questionEnded = true;
+
     const state = this.snapshot;
     const question = state.quiz!.questions[state.currentQuestionIndex];
     const timeLimitMs = question.timeLimit * 1000;
@@ -110,12 +127,9 @@ export class HostGameService {
     this.firebaseService.broadcast({
       type: 'reveal',
       correctIndex: question.correctIndex,
+      explanation: question.explanation,
       scores,
     });
-  }
-
-  showLeaderboard(): void {
-    this.update({ phase: 'leaderboard' });
   }
 
   nextOrFinish(): void {
@@ -170,6 +184,11 @@ export class HostGameService {
 
     const answers = [...state.answers, { playerId, optionIndex: msg.optionIndex, receivedAt: Date.now() }];
     this.update({ answers });
+
+    // Auto-end question when all players have answered
+    if (answers.length >= state.players.length) {
+      this.endQuestion();
+    }
   }
 
   private update(partial: Partial<HostGameState>): void {
@@ -182,6 +201,10 @@ export class HostGameService {
   }
 
   reset(): void {
+    if (this.thinkingTimer) {
+      clearTimeout(this.thinkingTimer);
+      this.thinkingTimer = null;
+    }
     this.firebaseService.destroy();
     this.state$.next({ ...INITIAL_STATE });
   }

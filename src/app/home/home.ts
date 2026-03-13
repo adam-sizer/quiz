@@ -14,6 +14,7 @@ import { RouterLink } from '@angular/router';
         <a routerLink="/host" class="btn btn-host">Host a Game</a>
         <a routerLink="/join" class="btn btn-join">Join a Game</a>
       </div>
+      <img src="https://i.pinimg.com/originals/20/16/45/201645bdb77d9440ebf7f4387b4ef0c0.gif" alt="dancing dog" style="width: 120px; margin-top: 2rem; border-radius: 10px;" />
     </div>
   `,
   styles: `

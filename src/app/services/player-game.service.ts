@@ -12,6 +12,7 @@ export interface PlayerGameState {
     text: string;
     options: string[];
     timeLimit: number;
+    thinkingTime: number;
   } | null;
   selectedAnswer: number | null;
   scores: ScoreEntry[];
@@ -19,6 +20,7 @@ export interface PlayerGameState {
   finalScore: number;
   lastCorrectIndex: number | null;
   lastDelta: number;
+  lastExplanation: string | null;
   error: string | null;
 }
 
@@ -32,6 +34,7 @@ const INITIAL_STATE: PlayerGameState = {
   finalScore: 0,
   lastCorrectIndex: null,
   lastDelta: 0,
+  lastExplanation: null,
   error: null,
 };
 
@@ -65,6 +68,13 @@ export class PlayerGameService {
     this.update({ phase: 'lobby' });
   }
 
+  /** Called by the player component when thinking time is over */
+  readyToAnswer(): void {
+    if (this.snapshot.phase === 'thinking') {
+      this.update({ phase: 'question' });
+    }
+  }
+
   submitAnswer(optionIndex: number): void {
     const state = this.snapshot;
     if (state.phase !== 'question' || state.selectedAnswer !== null) return;
@@ -83,24 +93,28 @@ export class PlayerGameService {
       case 'start':
         this.update({ phase: 'lobby' });
         break;
-      case 'question':
+      case 'question': {
+        const thinkingTime = msg.thinkingTime ?? 0;
         this.update({
-          phase: 'question',
+          phase: thinkingTime > 0 ? 'thinking' : 'question',
           currentQuestion: {
             index: msg.index,
             text: msg.text,
             options: msg.options,
             timeLimit: msg.timeLimit,
+            thinkingTime,
           },
           selectedAnswer: null,
           lastCorrectIndex: null,
         });
         break;
+      }
       case 'reveal': {
         const myScore = msg.scores.find((s) => s.name === this.snapshot.playerName);
         this.update({
           phase: 'results',
           lastCorrectIndex: msg.correctIndex,
+          lastExplanation: msg.explanation ?? null,
           scores: msg.scores,
           lastDelta: myScore?.delta ?? 0,
         });

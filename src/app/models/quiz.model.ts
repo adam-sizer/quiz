@@ -7,6 +7,7 @@ export interface QuizQuestion {
   options: QuizOption[];
   correctIndex: number;
   timeLimit: number;
+  explanation?: string;
 }
 
 export interface Quiz {
